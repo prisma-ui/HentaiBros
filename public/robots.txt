@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Sitemap: set REACT_APP_SITE_URL and add your sitemap URL here
