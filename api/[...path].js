@@ -18,12 +18,15 @@ export default async function handler(req, res) {
   const targetUrl = `${backendUrl.replace(/\/$/, '')}${path}`;
 
   try {
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+    // api/[...path].js — improved header forwarding
+const response = await fetch(targetUrl, {
+  method: req.method,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-Forwarded-For': req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+    'User-Agent': req.headers['user-agent'] || 'HentaiBros-Proxy/1.0',
+     },
     });
 
     const data = await response.json();
