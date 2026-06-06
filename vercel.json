@@ -1,4 +1,11 @@
 {
+  "functions": {
+    "api/[...path].js": {
+      "regions": ["sin1"]
+    }
+  }
+}
+{
   "rewrites": [
     {
       "source": "/((?!api/).*)",
