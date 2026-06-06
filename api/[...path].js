@@ -36,8 +36,12 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Fix 3: Set cache headers agar Vercel edge cache response
-    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    // Fix 3: Hanya cache response sukses, jangan cache error (404, 500, dll)
+    if (response.ok) {
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    } else {
+      res.setHeader('Cache-Control', 'no-store');
+    }
     res.status(response.status).json(data);
   } catch (err) {
     res.status(502).json({ status: 'error', message: 'Backend unreachable' });
