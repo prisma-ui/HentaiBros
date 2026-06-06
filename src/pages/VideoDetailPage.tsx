@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FiCalendar, FiTag, FiExternalLink, FiArrowLeft } from 'react-icons/fi';
-import { getVideoDetail } from '../api/client';
+import { getVideoDetail, getGenreDetail } from '../api/client';
 import { useSEO } from '../hooks/useSEO';
 import { useStructuredData } from '../hooks/useStructuredData';
-import type { VideoDetail } from '../types';
+import VideoCard from '../components/VideoCard';
+import type { VideoDetail, VideoItem } from '../types';
 
 const SITE_URL = (process.env.REACT_APP_SITE_URL || '').replace(/\/$/, '');
 
@@ -14,6 +15,8 @@ export default function VideoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeSource, setActiveSource] = useState(0);
+  const [related, setRelated] = useState<VideoItem[]>([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
 
   useSEO(
     data
@@ -51,9 +54,28 @@ export default function VideoDetailPage() {
     setLoading(true);
     setError('');
     setData(null);
+    setRelated([]);
     getVideoDetail(slug).then((res) => {
-      if (res.status === 'ok') setData(res.data);
-      else setError(res.message || 'Video tidak ditemukan');
+      if (res.status === 'ok') {
+        setData(res.data);
+        // Fetch related videos dari genre pertama
+        const firstGenre = res.data.genres?.[0];
+        if (firstGenre) {
+          setRelatedLoading(true);
+          getGenreDetail(firstGenre.slug, 1, 'latest').then((genreRes) => {
+            if (genreRes.status === 'ok') {
+              // Filter out video yang sedang ditonton
+              const filtered = genreRes.data.videos
+                .filter((v) => v.slug !== slug)
+                .slice(0, 12);
+              setRelated(filtered);
+            }
+            setRelatedLoading(false);
+          });
+        }
+      } else {
+        setError(res.message || 'Video tidak ditemukan');
+      }
       setLoading(false);
     });
   }, [slug]);
@@ -79,7 +101,8 @@ export default function VideoDetailPage() {
     );
   }
 
-  const embedSrc = data.sources?.[activeSource]?.src || data.embedUrl;
+  const rawSrc = data.sources?.[activeSource]?.src || data.embedUrl;
+  const embedSrc = rawSrc ? rawSrc.replace(/ /g, '%20') : undefined;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
@@ -135,7 +158,7 @@ export default function VideoDetailPage() {
       )}
 
       {/* Meta */}
-      <div className="bg-bg-card border border-border rounded-2xl p-5">
+      <div className="bg-bg-card border border-border rounded-2xl p-5 mb-8">
         <h1 className="text-xl font-black text-text-primary leading-snug mb-3">{data.title}</h1>
 
         <div className="flex flex-wrap gap-4 text-sm text-text-muted mb-4">
@@ -175,6 +198,53 @@ export default function VideoDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Related Videos */}
+      {(relatedLoading || related.length > 0) && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1 h-5 bg-accent-blue rounded-full" />
+            <h2 className="text-base font-bold text-text-primary">
+              Video Serupa
+              {data.genres?.[0] && (
+                <span className="text-text-muted font-normal ml-1">— {data.genres[0].name}</span>
+              )}
+            </h2>
+          </div>
+
+          {relatedLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 animate-pulse">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-bg-card rounded-xl overflow-hidden border border-border">
+                  <div className="aspect-[16/10] bg-bg-hover" />
+                  <div className="p-2.5">
+                    <div className="h-3.5 bg-bg-hover rounded w-full mb-1.5" />
+                    <div className="h-3 bg-bg-hover rounded w-2/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {related.map((video) => (
+                <VideoCard key={video.slug} video={video} />
+              ))}
+            </div>
+          )}
+
+          {data.genres?.[0] && (
+            <div className="mt-4 text-center">
+              <Link
+                to={`/genre/${data.genres[0].slug}`}
+                className="inline-flex items-center gap-1.5 text-sm text-accent-blue hover:underline font-semibold"
+              >
+                Lihat semua {data.genres[0].name}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
